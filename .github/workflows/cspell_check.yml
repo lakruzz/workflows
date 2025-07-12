@@ -1,0 +1,41 @@
+name: Run cspell check
+
+on:
+  workflow_call:
+
+permissions:
+  statuses: write
+
+jobs:
+  cspell:
+    name: cSpell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cpsell and gh dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm install -g cspell
+          gh extension install thetechcollective/gh-set-status --pin stable        
+
+      - name: Check spelling
+        id: spell-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+        run: |
+          set +e
+          # the `cspell` command will assume all the policies are in the cspell.json file in the root directory
+          cspell lint --no-progress  --config cspell.json &>> $GITHUB_STEP_SUMMARY
+          result=$?
+          cat $GITHUB_STEP_SUMMARY
+          set -e
+          if [ $result -eq 0 ]; then
+            gh set-status success "All spelling checks passed"
+          else
+            gh set-status failure "Some spelling checks failed"
+          fi
+          exit $result

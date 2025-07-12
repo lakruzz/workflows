@@ -1,0 +1,116 @@
+name: Jekyll Build
+
+on:
+  workflow_call:
+    secrets:
+      READY_PUSHER:
+        description: 'GitHub token for CLI operations'
+        required: true
+  
+jobs:
+  restore:
+    name: Restore artifact
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      statuses: write
+    outputs:
+      artifact-found: ${{ steps.restore-step.outputs.artifact-found }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+         
+      - name: Restore if artifact exists
+        id: restore-step
+        env:
+           GH_TOKEN: ${{ secrets.READY_PUSHER }}
+        run: |
+          set -x
+          set +e
+          gh run download -R ${{ github.repository }} -D _site -n jekyll-site-${{ github.sha }}
+          result=$?
+          set -e
+          if [ $result -eq 0 ]; then
+            echo "artifact-found=true" >> $GITHUB_OUTPUT
+            echo "Restored existing artifact for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "artifact-found=false" >> $GITHUB_OUTPUT
+            echo "No existing artifact found for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit 0
+
+  build:
+    if: needs.restore.outputs.artifact-found != 'true'
+    needs: restore
+    name: Build Jekyll Site
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      statuses: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+                         
+      - name: install rmagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libmagickwand-dev
+  
+      - name: Install bundler
+        run: |
+          echo 'export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"' >> $GITHUB_ENV
+          export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"
+          gem install bundler --user-install
+
+      - name: Install gh dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh extension install thetechcollective/gh-set-status --pin stable          
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v4    
+          
+      - name: Build with Jekyll
+        id: jekyll-build
+        env:
+          JEKYLL_ENV: production
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
+        run: |
+          export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"
+          bundle config set --local path 'vendor/bundle'
+          bundle update
+          set +e
+          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+          result=$?
+          set -e
+          if [ $result -eq 0 ]; then
+            echo "Built site with Jekyll for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "Base URL: '${{ steps.pages.outputs.base_path }}'" >> $GITHUB_STEP_SUMMARY
+            echo "JekyllEnvironment: '${JEKYLL_ENV}'" >> $GITHUB_STEP_SUMMARY
+            gh set-status success "All spelling checks passed"
+          else
+            echo "Jekyll build failed" >> $GITHUB_STEP_SUMMARY
+            gh set-status failure "Jekyll build failed"
+          fi
+          exit $result
+ 
+      - name: Upload reusable artifact
+        env:
+          GH_TOKEN: ${{ secrets.READY_PUSHER }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jekyll-site-${{ github.sha }}
+          path: ./_site
+          retention-days: 3
+
+        # Always upload for Pages deployment (required by actions/deploy-pages)
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+          retention-days: 3
+          name: github-pages-${{ github.repository_id }}-${{ github.sha }}

@@ -1,0 +1,47 @@
+name: Run ruff
+
+on:
+  workflow_call:
+
+permissions:
+  statuses: write
+
+jobs:
+  ruff-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.13"
+
+    - name: Install uv and gh dependencies
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        uv venv
+        uv sync --extra dev
+        gh extension install thetechcollective/gh-set-status --pin stable
+
+    - name: Check with ruff
+      id: Formatting
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        . .venv/bin/activate
+        # Dont exit if the next command fails, we want to capture the exit code
+        set +e
+        uv run ruff check . --output-format concise --output-file $GITHUB_STEP_SUMMARY
+        result=$?
+        set -e
+        if [ $result -eq 0 ]; then
+          gh set-status success "All linting checks passed"
+        else
+          gh set-status failure "Some linting checks failed"
+        fi
+        exit $result

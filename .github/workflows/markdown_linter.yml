@@ -1,0 +1,40 @@
+name: Markdown linter
+on:
+  workflow_call:
+
+permissions:
+  statuses: write
+
+jobs:
+  markdown-linter:
+    name: Markdown Linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install markdownlint and gh dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm install -g markdownlint-cli2
+          gh extension install thetechcollective/gh-set-status --pin stable        
+
+      - name: Markdown Linting
+        id: markdown-linting
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+        run: |
+          set +e
+          # the `markdownlint-cli2` command will assume all the policies are in the .markdownlint.json file in the root directory
+          markdownlint-cli2 "**/*.md" "#node_modules" &>> $GITHUB_STEP_SUMMARY
+          result=$?
+          cat $GITHUB_STEP_SUMMARY
+          set -e
+          if [ $result -eq 0 ]; then
+            gh set-status success "All linting policy checks passed"
+          else
+            gh set-status failure "Some linting policy checks failed"
+          fi
+          exit $result

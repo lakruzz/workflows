@@ -1,0 +1,45 @@
+name: Run unittest and set status
+
+on:
+  workflow_call:
+
+permissions:
+  statuses: write
+
+jobs:
+  pytest_with_coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.13"
+
+    - name: Install uv and gh dependencies
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        uv venv
+        uv sync --extra dev
+        gh extension install thetechcollective/gh-set-status --pin stable
+
+    - name: Test with pytest
+      id: Unittest
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        . .venv/bin/activate
+        # Dont exit if the next command fails, we want to capture the exit code
+        set +e
+        pytest --cov=. --cov-config=.coveragerc -m unittest
+        result=$?
+        set -e
+        if [ $result -eq 0 ]; then
+          gh set-status success "All tests passed and threshold on line coverage reached"
+        else
+          gh set-status failure "Some tests failed or threshold on line covearage not reached"
+        fi
+        exit $result
