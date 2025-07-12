@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# tt extension
+.tt_cache
+
+# Mine
+**/_temp.token
+/tmp
+/temp

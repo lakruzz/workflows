@@ -6,7 +6,7 @@ on:
       READY_PUSHER:
         description: 'GitHub token for CLI operations'
         required: true
-  
+
 jobs:
   restore:
     name: Restore artifact

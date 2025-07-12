@@ -20,15 +20,7 @@ if [ -e $(dirname $0)/_temp.token ]; then
     gh extension install thetechcollective/gh-tt
     echo "$PREFIX Installing the gh aliases"    
     gh alias import .devcontainer/.gh_alias.yml --clobber
-
 fi
-
-echo "$PREFIX Installing the Ruby gems"
-bundle update
-bundle install
-
-echo "$PREFIX Installing the cspell and markdownlint CLIs"
-npm install cspell markdownlint-cli2 --global
 
 echo "$PREFIX SUCCESS"
 exit 0
