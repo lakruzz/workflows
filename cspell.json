@@ -11,7 +11,6 @@
         "**/tmp/**",
         "**/temp/**"
     ],
-
     "files": [
         "**/*.md",
         "**/*.txt",
@@ -20,5 +19,16 @@
         "**/*.yaml",
         "**/LICENSE",
         "**/CONTRIBUTING"
-    ]
+    ],
+    "words": [
+        "lakruzz"
+    ],
+    "ignoreWords": [
+        "cspell",
+        "ffmerge",
+        "cspellrc",
+        "pytest",
+        "coveragerc",
+        "pyproject"
+    ],
 }
