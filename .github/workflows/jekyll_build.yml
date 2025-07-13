@@ -47,7 +47,6 @@ jobs:
     name: Build Jekyll Site
     runs-on: ubuntu-latest
     permissions:
-      # actions: write
       statuses: write
 
     steps:
