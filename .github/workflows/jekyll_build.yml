@@ -12,7 +12,7 @@ jobs:
     name: Restore artifact
     runs-on: ubuntu-latest
     permissions:
-      actions: read
+      # actions: read
       statuses: write
     outputs:
       artifact-found: ${{ steps.restore-step.outputs.artifact-found }}
@@ -33,10 +33,11 @@ jobs:
           set -e
           if [ $result -eq 0 ]; then
             echo "artifact-found=true" >> $GITHUB_OUTPUT
-            echo "Restored existing artifact for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "Restored Jekyll _site" artifact using 'jekyll-site-${{ github.sha }}' >> $GITHUB_STEP_SUMMARY
+            ls -a _site         
           else
             echo "artifact-found=false" >> $GITHUB_OUTPUT
-            echo "No existing artifact found for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "No Jekyll _site artifact found for 'jekyll-site-${{ github.sha }}' - will build from scratch" >> $GITHUB_STEP_SUMMARY
           fi
           exit 0
 
@@ -46,7 +47,7 @@ jobs:
     name: Build Jekyll Site
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      # actions: write
       statuses: write
 
     steps:
@@ -90,7 +91,7 @@ jobs:
           if [ $result -eq 0 ]; then
             echo "Built site with Jekyll for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
             echo "Base URL: '${{ steps.pages.outputs.base_path }}'" >> $GITHUB_STEP_SUMMARY
-            echo "JekyllEnvironment: '${JEKYLL_ENV}'" >> $GITHUB_STEP_SUMMARY
+            echo "Jekyll Environment: '${JEKYLL_ENV}'" >> $GITHUB_STEP_SUMMARY
             gh set-status success "All spelling checks passed"
           else
             echo "Jekyll build failed" >> $GITHUB_STEP_SUMMARY
@@ -107,10 +108,5 @@ jobs:
           path: ./_site
           retention-days: 3
 
-        # Always upload for Pages deployment (required by actions/deploy-pages)
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./_site
-          retention-days: 3
-          name: github-pages-${{ github.repository_id }}-${{ github.sha }}
+
+

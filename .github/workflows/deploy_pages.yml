@@ -1,0 +1,82 @@
+name: GitHub Pages Deploy
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Name of the artifact containing the built site'
+        required: false
+        type: string
+        default: 'jekyll-site-${{ github.sha }}'
+    secrets:
+      READY_PUSHER:
+        description: 'GitHub token for CLI operations, needs write permissions for pages, statuses and id-token'
+        required: true
+jobs:
+  deploy:
+    name: GitHub Pages
+    permissions:
+      statuses: write
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install gh dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh extension install thetechcollective/gh-set-status --pin stable 
+
+      - name: Download Jekyll site artifact
+        env:
+          GH_TOKEN: ${{ secrets.READY_PUSHER }}
+        run: |
+          set -x
+          gh run download -R ${{ github.repository }} -D _site -n ${{ inputs.artifact_name }} >> GITHUB_STEP_SUMMARY
+
+      - name: verify site directory
+        run: |
+          set -x
+          if [ ! -d "_site" ]; then
+            echo "Error: _site directory does not exist. Ensure that an artifact ${{ inputs.artifact_name }} exists." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            ls -la _site
+          fi
+
+      - name: Upload Pages artifact
+        env:
+          GH_TOKEN: ${{ secrets.READY_PUSHER }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+          retention-days: 1
+          name: github-pages-${{ github.repository_id }}-${{ github.sha }}
+
+      - name: Deploy to GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.READY_PUSHER }}
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.repository_id }}-${{ github.sha }}
+        
+      - name: Set deployment status
+        id: deployed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: always()
+        run: |
+          if [[ "${{ steps.deployment.outcome }}" == "success" && "${{ steps.deployment.outputs.page_url }}" != "" ]]; then
+            echo "Deployment successful: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+            gh set-status success "Deployment successful: ${{ steps.deployment.outputs.page_url }}"
+          else
+            echo "Deployment failed." >> $GITHUB_STEP_SUMMARY
+            gh set-status failure "Deployment failed"
+            # Don't exit 1 here to allow workflow to continue
+          fi

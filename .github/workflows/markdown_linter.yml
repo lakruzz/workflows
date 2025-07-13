@@ -1,6 +1,12 @@
 name: Markdown linter
 on:
   workflow_call:
+    inputs:
+      config_file:
+        description: 'Path to the markdownlint configuration file - relative to the repository root'
+        required: false
+        type: string
+        default: '.markdownlint.json'
 
 permissions:
   statuses: write
@@ -27,8 +33,8 @@ jobs:
  
         run: |
           set +e
-          # the `markdownlint-cli2` command will assume all the policies are in the .markdownlint.json file in the root directory
-          markdownlint-cli2 "**/*.md" "#node_modules" &>> $GITHUB_STEP_SUMMARY
+          # Use the configurable config file path
+          markdownlint-cli2 --config ${{ inputs.config_file }} "**/*.md" "#node_modules" &>> $GITHUB_STEP_SUMMARY
           result=$?
           cat $GITHUB_STEP_SUMMARY
           set -e
