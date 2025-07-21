@@ -2,17 +2,38 @@ name: Jekyll Build
 
 on:
   workflow_call:
+    inputs:
+      build_environment:
+        description: 'Build environment to use (ubuntu-latest or ruby-bookworm)'
+        required: false
+        default: 'ruby-bookworm'
+        type: string
     secrets:
       READY_PUSHER:
         description: 'GitHub token for CLI operations'
         required: true
 
 jobs:
+  validate:
+    name: Validate inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate build_environment input
+        run: |
+          if [[ "${{ inputs.build_environment }}" != "ubuntu-latest" && "${{ inputs.build_environment }}" != "ruby-bookworm" ]]; then
+            echo "❌ Invalid build_environment: '${{ inputs.build_environment }}'"
+            echo "Valid options are: 'ubuntu-latest' or 'ruby-bookworm'"
+            echo "Default is: 'ruby-bookworm'"
+            exit 1
+          else
+            echo "✅ Valid build_environment: '${{ inputs.build_environment }}'"
+          fi
+
   restore:
     name: Restore artifact
     runs-on: ubuntu-latest
+    needs: validate
     permissions:
-      # actions: read
       statuses: write
     outputs:
       artifact-found: ${{ steps.restore-step.outputs.artifact-found }}
@@ -43,9 +64,10 @@ jobs:
 
   build:
     if: needs.restore.outputs.artifact-found != 'true'
-    needs: restore
-    name: Build Jekyll Site
+    needs: [validate, restore]
+    name: Build Jekyll Site (${{ inputs.build_environment == 'ubuntu-latest' && 'Ubuntu Latest' || 'Ruby Bookworm' }})
     runs-on: ubuntu-latest
+    container: ${{ inputs.build_environment == 'ruby-bookworm' && 'ruby:3.3.0-bookworm' || '' }}
     permissions:
       statuses: write
 
@@ -53,16 +75,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
                          
-      - name: install rmagick
+      - name: Install imagemagick (Ubuntu)
+        if: inputs.build_environment == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick libmagickwand-dev
-  
-      - name: Install bundler
+
+      - name: Install bundler (Ubuntu)
+        if: inputs.build_environment == 'ubuntu-latest'
         run: |
           echo 'export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"' >> $GITHUB_ENV
           export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"
           gem install bundler --user-install
+
+      - name: Install curl (Ruby Bookworm)
+        if: inputs.build_environment == 'ruby-bookworm'
+        run: |
+          apt-get update
+          apt-get install -y git curl
+
+      - name: Install GitHub CLI (Ruby Bookworm)
+        if: inputs.build_environment == 'ruby-bookworm'
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          apt-get update
+          apt-get install gh -y
 
       - name: Install gh dependencies
         env:
@@ -80,10 +119,12 @@ jobs:
           JEKYLL_ENV: production
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
         run: |
-          export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"
+          if [ "${{ inputs.build_environment }}" = "ubuntu-latest" ]; then
+            export PATH="$HOME/.local/share/gem/ruby/3.2.0/bin:$PATH"
+          fi
           bundle config set --local path 'vendor/bundle'
           bundle config set frozen true
-          bundle update
+          bundle install
           set +e
           bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
           result=$?
@@ -92,6 +133,11 @@ jobs:
             echo "Built site with Jekyll for SHA ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
             echo "Base URL: '${{ steps.pages.outputs.base_path }}'" >> $GITHUB_STEP_SUMMARY
             echo "Jekyll Environment: '${JEKYLL_ENV}'" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ inputs.build_environment }}" = "ubuntu-latest" ]; then
+              echo "Build Environment: Ubuntu Latest" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Build Environment: Ruby Bookworm container" >> $GITHUB_STEP_SUMMARY
+            fi
             gh set-status success "All spelling checks passed"
           else
             echo "Jekyll build failed" >> $GITHUB_STEP_SUMMARY
