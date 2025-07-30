@@ -1,4 +1,4 @@
-name: Run ruff
+name: Ruff
 
 on:
   workflow_call:
@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   ruff-check:
+    name: Ruff
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -28,11 +29,12 @@ jobs:
         gh extension install thetechcollective/gh-set-status --pin stable
 
     - name: Check with ruff
-      id: Formatting
+      id: linting
       continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        gh set-status pending "ruff checks in progress"
         . .venv/bin/activate
         # Dont exit if the next command fails, we want to capture the exit code
         set +e

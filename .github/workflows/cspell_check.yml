@@ -1,4 +1,4 @@
-name: Run cspell check
+name: Cspell
 
 on:
   workflow_call:
@@ -33,6 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
  
         run: |
+          gh set-status pending "Spelling checks in progress"
           set +e
           # Use the configurable config file path
           cspell lint --no-progress --config ${{ inputs.config_file }} &>> $GITHUB_STEP_SUMMARY

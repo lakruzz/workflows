@@ -1,4 +1,4 @@
-name: Run unittest and set status
+name: Pytest
 
 on:
   workflow_call:
@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   pytest_with_coverage:
+    name: Pytest & coverage
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -27,10 +28,11 @@ jobs:
         gh extension install thetechcollective/gh-set-status --pin stable
 
     - name: Test with pytest
-      id: Unittest
+      id: unittest
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        gh set-status pending "unittest in progress"
         . .venv/bin/activate
         # Dont exit if the next command fails, we want to capture the exit code
         set +e

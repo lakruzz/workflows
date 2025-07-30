@@ -1,0 +1,46 @@
+name: Pending
+
+on:
+  workflow_call:
+    inputs:
+      statuses:
+        description: 'Multiline list of status names to mark as pending (one per line)'
+        required: true
+        type: string
+permissions:
+  statuses: write
+
+jobs:
+  mark-pending:
+    name: Marking pending statuses
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install gh dependencies
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh extension install thetechcollective/gh-set-status --pin experimental
+
+    - name: Mark pending
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Processing statuses:"
+        echo "${{ inputs.statuses }}"
+        echo "---"
+        
+        # Parse multiline input and process each status
+        echo "${{ inputs.statuses }}" | while IFS= read -r status; do
+          # Skip empty lines
+          if [ -n "$status" ]; then
+            echo "Setting status '$status' to pending..."
+            gh set-status pending "preparing to run" "$status"
+          fi
+        done
+        echo "All statuses marked as pending successfully."
+        exit 0
+
