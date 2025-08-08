@@ -20,8 +20,8 @@ jobs:
     uses: lakruzz/workflows/.github/workflows/mark_pending.yml@experimental
     with:
       statuses: |
-        new spell check
-        new markdown linter
+        spelling linter
+        markdown linter
         
   cspell_check:
     name: Spelling
@@ -31,7 +31,7 @@ jobs:
     uses: lakruzz/workflows/.github/workflows/cspell_check.yml@experimental
     with:
       config_file: cspell.json
-      context: new spell check 
+      context: spelling linter 
 
   markdown_linter:
     name: Linting
@@ -41,4 +41,4 @@ jobs:
     uses: lakruzz/workflows/.github/workflows/markdown_linter.yml@experimental
     with:
       config_file: .markdownlint.json
-      context: new markdown linter
+      context: markdown linter

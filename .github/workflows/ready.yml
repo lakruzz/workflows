@@ -9,22 +9,35 @@ on:
       - 'ready/*'
       
 jobs:
+  mark_pending:
+    name: Statuses
+    permissions:
+      statuses: write
+    uses: lakruzz/workflows/.github/workflows/mark_pending.yml@experimental
+    with:
+      statuses: |
+        spelling linter
+        markdown linter
 
   cspell_check:
+    needs: mark_pending
     name: Spelling
     permissions:
       statuses: write
     uses: lakruzz/workflows/.github/workflows/cspell_check.yml@experimental
     with:
       config_file: cspell.json # default is cspell.json
+      context: spelling linter
 
   markdown_linter:
+    needs: mark_pending
     name: Linting
     permissions:
       statuses: write
     uses: lakruzz/workflows/.github/workflows/markdown_linter.yml@experimental
     with:
       config_file: .markdownlint.json # default is .markdownlint.json
+      context: markdown linter
   
   fast-forward-merge:
     name: Merge
