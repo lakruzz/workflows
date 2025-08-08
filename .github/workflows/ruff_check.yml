@@ -2,6 +2,12 @@ name: Ruff
 
 on:
   workflow_call:
+    inputs:
+      context:
+        required: false
+        type: string
+        default: 'ruff-lint'
+        description: 'Identifier for the workflow when reporting status'
 
 permissions:
   statuses: write
@@ -42,8 +48,8 @@ jobs:
         result=$?
         set -e
         if [ $result -eq 0 ]; then
-          gh set-status success "All linting checks passed"
+          gh set-status success "All linting checks passed" "${{ inputs.context }}"
         else
-          gh set-status failure "Some linting checks failed"
+          gh set-status failure "Some linting checks failed" "${{ inputs.context }}"
         fi
         exit $result

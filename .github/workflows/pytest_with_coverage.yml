@@ -2,6 +2,12 @@ name: Pytest
 
 on:
   workflow_call:
+    inputs:
+      context:
+        required: false
+        type: string
+        default: 'unittest'
+        description: 'Identifier for the workflow when reporting status'
 
 permissions:
   statuses: write
@@ -40,8 +46,8 @@ jobs:
         result=$?
         set -e
         if [ $result -eq 0 ]; then
-          gh set-status success "All tests passed and threshold on line coverage reached"
+          gh set-status success "All tests passed and threshold on line coverage reached" "${{ inputs.context }}"
         else
-          gh set-status failure "Some tests failed or threshold on line covearage not reached"
+          gh set-status failure "Some tests failed or threshold on line covearage not reached" "${{ inputs.context }}"
         fi
         exit $result

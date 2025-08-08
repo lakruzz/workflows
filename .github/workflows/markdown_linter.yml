@@ -7,6 +7,12 @@ on:
         required: false
         type: string
         default: '.markdownlint.json'
+      context:
+        required: false
+        type: string
+        default: 'markdown-linting'
+        description: 'Identifier for the workflow when reporting status'
+
 
 permissions:
   statuses: write
@@ -39,8 +45,8 @@ jobs:
           cat $GITHUB_STEP_SUMMARY
           set -e
           if [ $result -eq 0 ]; then
-            gh set-status success "All linting policy checks passed"
+            gh set-status success "All linting policy checks passed" "${{ inputs.context }}"
           else
-            gh set-status failure "Some linting policy checks failed"
+            gh set-status failure "Some linting policy checks failed" "${{ inputs.context }}"
           fi
           exit $result

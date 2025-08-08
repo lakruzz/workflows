@@ -12,19 +12,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+
+  mark-pending:
+    name: Statuses
+    permissions:
+      statuses: write
+    uses: lakruzz/workflows/.github/workflows/mark_pending.yml@experimental
+    with:
+      statuses: |
+        new spell check
+        new markdown linter
         
   cspell_check:
     name: Spelling
+    needs: mark-pending
     permissions:
       statuses: write
     uses: lakruzz/workflows/.github/workflows/cspell_check.yml@experimental
     with:
-      config_file: cspell.json 
+      config_file: cspell.json
+      context: new spell check 
 
   markdown_linter:
     name: Linting
+    needs: mark-pending
     permissions:
       statuses: write
     uses: lakruzz/workflows/.github/workflows/markdown_linter.yml@experimental
     with:
       config_file: .markdownlint.json
+      context: new markdown linter
