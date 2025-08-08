@@ -11,6 +11,7 @@ on:
 
 permissions:
   statuses: write
+  contents: read
 
 jobs:
   pytest_with_coverage:
