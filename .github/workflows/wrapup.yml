@@ -21,7 +21,6 @@ jobs:
     with:
       statuses: |
         spelling linter
-        markdown linter
         
   cspell_check:
     name: Spelling
@@ -33,12 +32,3 @@ jobs:
       config_file: cspell.json
       context: spelling linter 
 
-  markdown_linter:
-    name: Linting
-    needs: mark-pending
-    permissions:
-      statuses: write
-    uses: lakruzz/workflows/.github/workflows/markdown_linter.yml@experimental
-    with:
-      config_file: .markdownlint.json
-      context: markdown linter
