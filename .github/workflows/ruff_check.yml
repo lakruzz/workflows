@@ -40,7 +40,6 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh set-status pending "ruff checks in progress"
         . .venv/bin/activate
         # Dont exit if the next command fails, we want to capture the exit code
         set +e
