@@ -6,7 +6,7 @@ on:
         description: 'Path to the markdownlint configuration file - relative to the repository root'
         required: false
         type: string
-        default: '.markdownlint.json'
+        default: '.markdownlint-cli2.jsonc'
       context:
         required: false
         type: string
@@ -39,8 +39,8 @@ jobs:
  
         run: |
           set +e
-          # Use the configurable config file path
-          markdownlint-cli2 --config ${{ inputs.config_file }} "**/*.md" "#node_modules" &>> $GITHUB_STEP_SUMMARY
+          # Use the configurable config file path - globs are defined in the config file
+          markdownlint-cli2 --config ${{ inputs.config_file }} &>> $GITHUB_STEP_SUMMARY
           result=$?
           cat $GITHUB_STEP_SUMMARY
           set -e

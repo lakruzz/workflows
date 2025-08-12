@@ -9,15 +9,6 @@ on:
       - 'ready/*'
       
 jobs:
-  #mark_pending:
-  #  name: Statuses
-  #  permissions:
-  #    statuses: write
-  #  uses: lakruzz/workflows/.github/workflows/mark_pending.yml@experimental
-  #  with:
-  #    statuses: |
-  #      spelling linter
-  #      markdown linter
 
   inherit-statuses:
     name: Inherit statuses
