@@ -9,6 +9,7 @@ on:
         type: string
 permissions:
   statuses: write
+  contents: read
 
 jobs:
   mark-pending:
