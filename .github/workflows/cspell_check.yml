@@ -16,6 +16,7 @@ on:
 
 permissions:
   statuses: write
+  contents: read
 
 jobs:
   cspell:
@@ -35,7 +36,7 @@ jobs:
       - name: Check spelling
         id: spell-check
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
  
         run: |
           set +e

@@ -14,6 +14,7 @@ jobs:
     name: Inherit statuses
     permissions:
       statuses: write
+      contents: read
     uses: lakruzz/workflows/.github/workflows/inherit_statuses.yml@experimental
   
   fast-forward-merge:
@@ -23,7 +24,7 @@ jobs:
     permissions:
       contents: write
     secrets:
-      READY_PUSHER: ${{ secrets.READY_PUSHER }}
+      token: ${{ secrets.READY_PUSHER }}
     uses: lakruzz/workflows/.github/workflows/fast_forward.yml@experimental
     with:
       target_branch: main #default is main

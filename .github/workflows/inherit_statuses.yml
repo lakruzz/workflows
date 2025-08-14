@@ -8,8 +8,10 @@ on:
         required: false
         default: ''
         type: string
+
 permissions:
   statuses: write
+  contents: read
 
 jobs:
   inherit-statuses:

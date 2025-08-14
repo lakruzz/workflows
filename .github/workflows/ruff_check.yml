@@ -11,6 +11,7 @@ on:
 
 permissions:
   statuses: write
+  contents: read
 
 jobs:
   ruff-check:
@@ -43,7 +44,7 @@ jobs:
         . .venv/bin/activate
         # Dont exit if the next command fails, we want to capture the exit code
         set +e
-        uv run ruff check . --output-format concise --output-file $GITHUB_STEP_SUMMARY
+        ruff check . --output-format concise --output-file $GITHUB_STEP_SUMMARY
         result=$?
         set -e
         if [ $result -eq 0 ]; then

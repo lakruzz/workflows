@@ -13,9 +13,9 @@ on:
         default: 'markdown-linting'
         description: 'Identifier for the workflow when reporting status'
 
-
 permissions:
   statuses: write
+  contents: read
 
 jobs:
   markdown-linter:
@@ -35,7 +35,7 @@ jobs:
       - name: Markdown Linting
         id: markdown-linting
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
  
         run: |
           set +e

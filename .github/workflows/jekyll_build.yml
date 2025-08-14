@@ -8,10 +8,9 @@ on:
         required: false
         default: 'ruby-bookworm'
         type: string
-    secrets:
-      READY_PUSHER:
-        description: 'GitHub token for CLI operations'
-        required: true
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -41,11 +40,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-         
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} 
+
       - name: Restore if artifact exists
         id: restore-step
         env:
-           GH_TOKEN: ${{ secrets.READY_PUSHER }}
+           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -x
           set +e
@@ -147,7 +148,7 @@ jobs:
  
       - name: Upload reusable artifact
         env:
-          GH_TOKEN: ${{ secrets.READY_PUSHER }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: actions/upload-artifact@v4
         with:
           name: jekyll-site-${{ github.sha }}
