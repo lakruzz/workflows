@@ -1,0 +1,59 @@
+name: Ruff Formatting
+
+on:
+  workflow_call:
+    inputs:
+      context:
+        required: false
+        type: string
+        default: 'ruff-format'
+        description: 'Identifier for the workflow when reporting status'
+      continue-on-error:
+        required: false
+        type: boolean
+        default: true
+        description: 'When set to false, the workflow will fail when there are formatting errors'
+
+permissions:
+  statuses: write
+  contents: read
+
+jobs:
+  ruff-format:
+    name: Ruff Formatting
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.13"
+
+    - name: Install uv and gh dependencies
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        uv venv
+        uv sync --extra dev
+        gh extension install thetechcollective/gh-set-status --pin stable
+
+    - name: Check with ruff
+      id: formatting
+      continue-on-error: ${{ inputs.continue-on-error }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Dont exit if the next command fails, we want to capture the exit code
+        set +e
+        uv run ruff format --check .
+        result=$?
+        set -e
+        if [ $result -eq 0 ]; then
+          gh set-status success "All formatting checks passed" "${{ inputs.context }}"
+        else
+          gh set-status failure "Some formatting checks failed" "${{ inputs.context }}"
+        fi
+        exit $result
