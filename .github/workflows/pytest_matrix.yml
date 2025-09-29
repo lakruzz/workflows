@@ -1,0 +1,69 @@
+name: Pytest Matrix
+description: >
+  Workflow to run pytest against multiple python versions. Reports status for each python version in the format "<context> - Python <python_version>". E.g. "Pytest Matrix - Python 3.13"
+
+on:
+  workflow_call:
+    inputs:
+      context:
+        required: false
+        type: string
+        default: 'Pytest Matrix'
+        description: 'Identifier for the workflow when reporting status'
+      pytest_arguments:
+        required: false
+        type: string
+        default: ''
+        description: 'The argument string to pass to pytest (default is none)'
+      python_versions:
+        required: true
+        type: string
+        description: >
+          Python versions to use, e.g. "['3.11', '3.12']". Must be a string representing a JSON array of strings.The tests will be run against all versions in parallel. The workflow run will run for all python versions regardless of individual failures. A failure in any python version will fail the workflow run.
+      
+permissions:
+  statuses: write
+  contents: read
+
+jobs:
+  pytest:
+    strategy:
+      matrix:
+        python_version: ${{ fromJSON(inputs.python_versions) }}
+
+    name: Pytest - python ${{matrix.python_version}}
+    runs-on: ubuntu-latest    
+
+    env:
+      UV_PYTHON: ${{ matrix.python_version }}
+
+    steps:
+    - uses: actions/checkout@v5
+    
+    - uses: astral-sh/setup-uv@v6
+      with:
+        python-version: ${{ matrix.python_version }}
+    
+    - name: Install deps
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh extension install thetechcollective/gh-set-status --pin stable
+        uv sync --locked --extra dev
+    
+    - name: Run tests
+      id: tests
+      run: |
+        uv run pytest ${{ inputs.pytest_arguments }}
+
+    - name: Report status
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: always()
+      run: |
+        if [ ${{ steps.tests.outcome }} == 'success' ]; then
+          gh set-status success "All tests passed" "${{ inputs.context }} - python ${{ matrix.python_version }}"
+        else
+          gh set-status failure "Some tests failed" "${{ inputs.context }} - python ${{ matrix.python_version }}"
+          exit 1
+        fi
