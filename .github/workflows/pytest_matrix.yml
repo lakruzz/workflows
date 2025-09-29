@@ -62,8 +62,8 @@ jobs:
       if: always()
       run: |
         if [ ${{ steps.tests.outcome }} == 'success' ]; then
-          gh set-status success "All tests passed" "${{ inputs.context }} - python {{ matrix.python_version }}"
+          gh set-status success "All tests passed" "${{ inputs.context }} - python ${{ matrix.python_version }}"
         else
-          gh set-status failure "Some tests failed" "${{ inputs.context }} - python {{ matrix.python_version }}"
+          gh set-status failure "Some tests failed" "${{ inputs.context }} - python ${{ matrix.python_version }}"
           exit 1
         fi
