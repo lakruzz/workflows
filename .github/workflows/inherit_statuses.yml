@@ -32,8 +32,8 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ -n "${{ inputs.ref }}" ]; then
-          gh set-status inherit "${{ inputs.ref }}"
+          gh set-status inherit "${{ inputs.ref }}" 2>> $GITHUB_STEP_SUMMARY
         else
-          gh set-status inherit
+          gh set-status inherit 2>> $GITHUB_STEP_SUMMARY
         fi
 
