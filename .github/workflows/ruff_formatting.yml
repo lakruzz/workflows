@@ -11,8 +11,8 @@ on:
       continue-on-error:
         required: false
         type: boolean
-        default: true
-        description: 'When set to false, the workflow will fail when there are formatting errors'
+        default: false
+        description: 'When set to true, the workflow will continue even if there are errors'
 
 permissions:
   statuses: write

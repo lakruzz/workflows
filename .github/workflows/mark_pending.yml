@@ -7,6 +7,12 @@ on:
         description: 'Multiline list of status names to mark as pending (one per line)'
         required: true
         type: string
+      continue-on-error:
+        required: false
+        type: boolean
+        default: false
+        description: 'When set to true, the workflow will continue even if there are errors'
+        
 permissions:
   statuses: write
   contents: read
@@ -26,7 +32,7 @@ jobs:
         gh extension install thetechcollective/gh-set-status --pin experimental
 
     - name: Mark pending
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |

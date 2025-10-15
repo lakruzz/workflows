@@ -8,6 +8,11 @@ on:
         type: string
         default: 'ruff-lint'
         description: 'Identifier for the workflow when reporting status'
+      continue-on-error:
+        required: false
+        type: boolean
+        default: false
+        description: 'When set to true, the workflow will continue even if there are errors'
 
 permissions:
   statuses: write
@@ -37,7 +42,7 @@ jobs:
 
     - name: Check with ruff
       id: linting
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
