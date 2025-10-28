@@ -40,9 +40,10 @@ jobs:
         run: |
           set +e
           # Use the configurable config file path - globs are defined in the config file
+          echo '```' >> $GITHUB_STEP_SUMMARY
           markdownlint-cli2 --config ${{ inputs.config_file }} &>> $GITHUB_STEP_SUMMARY
           result=$?
-          cat $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           set -e
           if [ $result -eq 0 ]; then
             gh set-status success "All linting policy checks passed" "${{ inputs.context }}"

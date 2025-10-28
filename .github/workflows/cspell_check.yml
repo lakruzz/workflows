@@ -39,11 +39,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
  
         run: |
+          
           set +e
           # Use the configurable config file path
+          echo '```' >> $GITHUB_STEP_SUMMARY
           cspell lint --no-progress --config ${{ inputs.config_file }} &>> $GITHUB_STEP_SUMMARY
           result=$?
-          cat $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           set -e
           if [ $result -eq 0 ]; then
             gh set-status success "All spelling checks passed" "${{ inputs.context }}"
