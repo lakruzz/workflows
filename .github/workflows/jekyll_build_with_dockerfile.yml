@@ -8,6 +8,11 @@ on:
         required: false
         default: 'Dockerfile'
         type: string
+      jekyll-build-args:
+        description: 'Additional build arguments to pass to Jekyll build step'
+        required: false
+        default: ''
+        type: string
     secrets:
       READY_PUSHER:
         description: 'GitHub token for CLI operations (deprecated - use token instead)'
@@ -188,7 +193,7 @@ jobs:
           bundle config set path "/usr/local/bundle"
           bundle config set frozen true
           bundle install
-          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" ${{ inputs.jekyll-build-args }}
           result=$?
           
           if [ $result -eq 0 ]; then
