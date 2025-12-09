@@ -15,7 +15,7 @@ Ensures clean, linear git history by only allowing merges when the target branch
 ## Inputs
 
 | Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
+| --------- | -------- | ------- |-------------|
 | `target_branch` | No | `main` | Branch to merge into |
 | `user_name` | Yes | - | Git user name for merge |
 | `user_email` | Yes | - | Git user email for merge |

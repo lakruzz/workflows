@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   mark-pending:
-    name: Marking pending statuses
+    name: Statuses
     runs-on: ubuntu-latest
     steps:
     - name: Checkout

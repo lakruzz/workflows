@@ -1,0 +1,138 @@
+name: Build or restore docker image with cache
+## This workflow verifies that the docker image exists 
+## It will finish quickly if the image is already built, 
+## otherwise it builds a Docker image and pushes it to ghcr.io
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        description: 'Location of the Dockerfile to build'
+        required: false
+        default: 'Dockerfile'
+        type: string
+      hash-files:
+        description: 'Additional files to include in the hash calculation (space-separated)'
+        required: false
+        default: ''
+        type: string
+      image-tag:
+        description: 'Tag to use for the Docker image'
+        required: false
+        default: 'docker-workflow-image'
+        type: string
+      registry-repo:
+        description: 'GitHub repository for the registry (owner/repo)'
+        required: false
+        default: ''
+        type: string
+    outputs:
+      image-fqdn:
+        description: 'Fully qualified Docker image name'
+        value: ${{ jobs.build-image.outputs.image-fqdn }}
+      image-tag:
+        description: 'Docker image tags'
+        value: ${{ jobs.build-image.outputs.image-tag }}
+      dockerfile-hash:
+        description: 'Hash of the Dockerfile'
+        value: ${{ jobs.build-image.outputs.dockerfile-hash }}
+    secrets:
+      token:
+        description: 'GitHub token for CLI and Action operations'
+        required: false
+
+jobs:
+
+  build-image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      dockerfile-hash: ${{ steps.dockerfile-hash.outputs.hash }}
+      image-fqdn: ghcr.io/${{ inputs.registry-repo || github.repository }}/${{ inputs.image-tag }}:dockerfile-${{ steps.dockerfile-hash.outputs.hash }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Calculate Dockerfile hash
+        id: dockerfile-hash
+        run: |
+          # Verify that all files needed for hash calculation exist
+          # start with Dockerfile
+          if [ ! -f "${{ inputs.dockerfile }}" ]; then
+            echo "❌ Dockerfile not found: ${{ inputs.dockerfile }}"
+            exit 1
+          fi
+
+          # Continue with any additional hash files
+          for file in ${{ inputs.hash-files }}; do
+            [ -z "$file" ] && continue  # Skip empty strings from whitespace splitting
+            if [ ! -f "$file" ]; then
+              echo "❌ Hash file not found: $file"
+              exit 1
+            fi
+          done
+
+          # Compute the hash
+          echo "Compute hash from '${{ inputs.dockerfile }}' and '${{ inputs.hash-files }}'" >> $GITHUB_STEP_SUMMARY
+
+          HASH_INPUT=$(cat "${{ inputs.dockerfile }}")
+          for file in ${{ inputs.hash-files }}; do
+            HASH_INPUT="${HASH_INPUT}$(cat "$file")"
+          done
+          
+          DOCKERFILE_HASH=$(echo "$HASH_INPUT" | sha256sum | cut -d' ' -f1 | head -c 12)
+          echo "hash=${DOCKERFILE_HASH}" >> $GITHUB_OUTPUT
+          echo "Hash: ${DOCKERFILE_HASH}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ inputs.registry-repo || github.repository }}/${{ inputs.image-tag }}
+          tags: |
+            type=raw,value=dockerfile-${{ steps.dockerfile-hash.outputs.hash }}
+            type=raw,value=latest
+
+      - name: Check if image exists
+        id: check-image
+        run: |
+          IMAGE_TAG="ghcr.io/${{ inputs.registry-repo || github.repository }}/${{ inputs.image-tag }}:dockerfile-${{ steps.dockerfile-hash.outputs.hash }}"
+          if docker manifest inspect "$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Image already exists: $IMAGE_TAG" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "🔨 Need to build new image: $IMAGE_TAG" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check-image.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        id: docker-build
+        if: steps.check-image.outputs.exists != 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print to summary
+        if: steps.docker-build.outcome == 'success'
+        run: |
+          echo "✅ Build and cached: ghcr.io/${{ inputs.registry-repo || github.repository }}/${{ inputs.image-tag }}:dockerfile-${{ steps.dockerfile-hash.outputs.hash }}" >> $GITHUB_STEP_SUMMARY

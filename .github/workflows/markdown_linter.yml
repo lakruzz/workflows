@@ -1,4 +1,4 @@
-name: Markdown linter
+name: MarkDown Linter
 on:
   workflow_call:
     inputs:
@@ -10,7 +10,7 @@ on:
       context:
         required: false
         type: string
-        default: 'markdown-linting'
+        default: 'markdown:lint'
         description: 'Identifier for the workflow when reporting status'
 
 permissions:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   markdown-linter:
-    name: Markdown Linter
+    name: MarkDown
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,12 +39,15 @@ jobs:
  
         run: |
           set +e
-          # Use the configurable config file path - globs are defined in the config file
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          markdownlint-cli2 --config ${{ inputs.config_file }} &>> $GITHUB_STEP_SUMMARY
+          markdownlint-cli2 --config ${{ inputs.config_file }} > "${{ inputs.context }}.log" 2>&1
           result=$?
-          echo '```' >> $GITHUB_STEP_SUMMARY
           set -e
+          cat "${{ inputs.context }}.log"
+          if [ $result -eq 0 ]; then result_icon=✅; else result_icon=❌; fi
+          echo "## $result_icon \`${{ inputs.context }}\`" >> $GITHUB_STEP_SUMMARY
+          echo '```'                                       >> $GITHUB_STEP_SUMMARY
+          cat "${{ inputs.context }}.log"                  >> $GITHUB_STEP_SUMMARY
+          echo '```'                                       >> $GITHUB_STEP_SUMMARY
           if [ $result -eq 0 ]; then
             gh set-status success "All linting policy checks passed" "${{ inputs.context }}"
           else

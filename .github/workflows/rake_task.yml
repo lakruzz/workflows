@@ -1,0 +1,104 @@
+name: Rake
+# This workflow runs a specified rake task inside a Docker container built from a given Docker image.
+# It reports the status of the task execution back to GitHub.
+# It assumes that 
+#  - The Docker image has been previously built and is available in the GitHub Container Registry.
+#  - The `bundle install` has been run during the image build.
+#  - The rake task specified is valid and can be executed within the container.
+#
+# SAMPLE USAGE:
+# 
+#  prepare-image:
+#    name: Prepare Docker Image
+#    permissions:
+#      packages: write
+#    uses: lakruzz/workflows/.github/workflows/docker_with_cache.yml@stable
+#    with:
+#      dockerfile: Dockerfile
+#      hash-files: Gemfile.lock
+#      image-tag: docker-workflow-image
+#
+#  rake_tasks:
+#    name: Multiple
+#    needs: prepare-image
+#    permissions:
+#      statuses: write
+#      contents: read
+#      packages: read
+#    uses: lakruzz/workflows/.github/workflows/rake_task.yml@stable
+#    with:
+#      rake-task: jekyll:build proofer:check
+#      image-fqdn: ${{ needs.prepare-image.outputs.image-fqdn }}
+
+
+on:
+  workflow_call:
+    inputs:
+      rake-task:
+        required: true
+        type: string
+        description: 'The rake tasks to run (space-separated if multiple)'
+      image-fqdn:
+        description: 'Fully qualified Docker image name'
+        required: true
+        type: string
+      bundle-path:
+        description: 'Global path to bundle gems (optional, should match the one used in Dockerfile)'
+        required: false
+        default: '/usr/local/bundle'
+        type: string
+    secrets:
+      token:
+        description: 'GitHub token for CLI and Action operations'
+        required: false
+
+permissions:
+  statuses: write
+  contents: read
+  packages: read
+
+jobs:
+
+  rake-task:
+    name: Rake tasks
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.image-fqdn }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bundle config set --global path "${{ inputs.bundle-path }}"
+          gh extension install thetechcollective/gh-set-status --pin stable
+
+      - name: ${{ inputs.rake-task }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for raketask in ${{ inputs.rake-task }}; do
+            set +e
+            bundle exec rake $raketask > "$raketask.log" 2>&1
+            result=$?
+            set -e
+            cat "$raketask.log"
+            if [ $result -eq 0 ]; then result_icon=✅; else result_icon=❌; fi
+            echo "## $result_icon \`$raketask\`" >> $GITHUB_STEP_SUMMARY
+            echo '```'                                      >> $GITHUB_STEP_SUMMARY
+            cat "$raketask.log"                             >> $GITHUB_STEP_SUMMARY
+            echo '```'                                      >> $GITHUB_STEP_SUMMARY
+            if [ $result -eq 0 ]; then
+              gh set-status success "Rake task $raketask passed" "$raketask"
+            else
+              gh set-status failure "Rake task $raketask failed" "$raketask"
+              exit $result
+            fi
+          done
+
+          
