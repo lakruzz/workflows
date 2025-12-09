@@ -17,12 +17,9 @@ on:
         required: true
         type: string
     secrets:
-      READY_PUSHER:
-        description: 'GitHub token for CLI operations, needs write permissions for contents (deprecated - use token instead)'
-        required: false
       token:
         description: 'GitHub token for CLI operations, needs write permissions for contents'
-        required: false
+        required: true
 
 jobs:
   ffmerge:
@@ -33,29 +30,11 @@ jobs:
       
     steps:
 
-    - name: Validate token availability
-      run: |
-        if [ -z "${{ secrets.token }}" ] && [ -z "${{ secrets.READY_PUSHER }}" ]; then
-          echo "❌ Error: Either 'token' or 'READY_PUSHER' secret must be provided"
-          echo "Please provide one of these secrets for authentication:"
-          echo "  - token: GitHub token with write permissions (recommended)"
-          echo "  - READY_PUSHER: GitHub token with write permissions (deprecated)"
-          exit 1
-        fi
-        if [ -n "${{ secrets.token }}" ] && [ -n "${{ secrets.READY_PUSHER }}" ]; then
-          echo "⚠️  Warning: Both 'token' and 'READY_PUSHER' secrets provided. Using 'token'."
-        fi
-        if [ -n "${{ secrets.token }}" ]; then
-          echo "✅ Using 'token' secret for authentication"
-        else
-          echo "✅ Using 'READY_PUSHER' secret for authentication (consider migrating to 'token')"
-        fi
-
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
         ref: ${{ inputs.target_branch }}
-        token: ${{ secrets.token || secrets.READY_PUSHER }}
+        token: ${{ secrets.token }}
 
     - name: Set up git config
       run: |
@@ -64,7 +43,7 @@ jobs:
 
     - name: Fast-Forward merge to target branch
       env:
-        GH_TOKEN: ${{ secrets.token || secrets.READY_PUSHER }}
+        GH_TOKEN: ${{ secrets.token }}
 
       run: |
         git checkout ${{ inputs.target_branch }}
