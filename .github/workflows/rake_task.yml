@@ -113,11 +113,17 @@ jobs:
           done
 
       - name: Upload  build artifact
+        id: upload-artifact
         if: inputs.upload-artifact && success()
         uses: actions/upload-artifact@v4
         with:
           name: site-${{ github.sha }}
           path: ${{ inputs.upload-artifact-path }}
           retention-days: 3
+
+      - name: Status summary
+        if: success()
+        run: |
+          echo ${{ steps.upload-artifact.outputs.artifact-name }} >> $GITHUB_STEP_SUMMARY
 
           
