@@ -121,9 +121,5 @@ jobs:
           path: ${{ inputs.upload-artifact-path }}
           retention-days: 3
 
-      - name: Status summary
-        if: inputs.upload-artifact && success()
-        run: |
-          echo "Uploaded: ${{ steps.upload-artifact.outputs.artifact-name }}" >> $GITHUB_STEP_SUMMARY
 
           
