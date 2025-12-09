@@ -55,7 +55,7 @@ on:
       upload-artifact:
         description: 'Whether to upload an artifact (default: false)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
     secrets:
       token:
