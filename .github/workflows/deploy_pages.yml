@@ -7,7 +7,7 @@ on:
         description: 'Name of the artifact containing the built site'
         required: false
         type: string
-        default: 'jekyll-site-${{ github.sha }}'
+        default: 'site-${{ github.sha }}'
     secrets:
       token:
         description: 'GitHub token for CLI operations, needs write permissions for pages, statuses and id-token'
@@ -43,7 +43,7 @@ jobs:
         run: |
           set -x
           if [ ! -d "_site" ]; then
-            echo "Error: _site directory does not exist. Ensure that an artifact ${{ inputs.artifact_name }} exists." >> $GITHUB_STEP_SUMMARY
+            echo "Error: \`_site\` directory does not exist. Ensure that an artifact \`${{ inputs.artifact_name }}\` exists." >> $GITHUB_STEP_SUMMARY
             exit 1
           else
             ls -la _site
