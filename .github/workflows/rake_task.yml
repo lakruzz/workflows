@@ -47,6 +47,16 @@ on:
         required: false
         default: '/usr/local/bundle'
         type: string
+      upload-artifact-path:
+        description: 'Default path to upload artifact from if uppload-artifact is true'
+        required: false
+        default: './_site'
+        type: string
+      upload-artifact:
+        description: 'Whether to upload an artifact (default: false)'
+        required: false
+        default: false
+        type: boolean
     secrets:
       token:
         description: 'GitHub token for CLI and Action operations'
@@ -56,6 +66,7 @@ permissions:
   statuses: write
   contents: read
   packages: read
+  actions: write
 
 jobs:
 
@@ -101,4 +112,13 @@ jobs:
             fi
           done
 
-          
+      - name: Upload  build artifact
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+        id: upload-artifact
+        if: inputs.upload-artifact && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ github.sha }}
+          path: ${{ inputs.upload-artifact-path }}
+          retention-days: 3
