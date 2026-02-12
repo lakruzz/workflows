@@ -1,0 +1,120 @@
+name: Deploy to Repository
+
+on:
+  workflow_call:
+    inputs:
+      target_repository:
+        description: "Target repository in owner/repo format (e.g., devopsdays-dk/devopsdays-dk.github.io)"
+        required: true
+        type: string
+      artifact_name:
+        description: "Name of the artifact to download"
+        required: true
+        type: string
+      artifact_path:
+        description: "Local path where artifact will be downloaded to"
+        required: false
+        type: string
+        default: "./_site"
+      user_name:
+        description: "Git user name for the commit"
+        required: true
+        type: string
+      user_email:
+        description: "Git user email for the commit"
+        required: true
+        type: string
+      commit_message:
+        description: "Commit message for deployment"
+        required: false
+        type: string
+        default: "Deploy from ${{ github.repository }}@${{ github.ref_name }}"
+      target_branch:
+        description: "Target branch in the production repository"
+        required: false
+        type: string
+        default: "main"
+      context:
+        description: "Identifier for the workflow when reporting status"
+        required: false
+        type: string
+        default: "deploy:repo"
+    secrets:
+      token:
+        description: "GitHub token with repo write permissions for the target repository"
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Install gh dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh extension install thetechcollective/gh-set-status --pin stable
+
+      - name: Download build artifact
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+        run: |
+          set -x
+          gh run download -R ${{ github.repository }} -D ${{ inputs.artifact_path }} -n ${{ inputs.artifact_name }} >> $GITHUB_STEP_SUMMARY
+
+      - name: verify site directory
+        run: |
+          set -x
+          if [ ! -d "${{ inputs.artifact_path }}" ]; then
+            echo "❌ Error: \`${{ inputs.artifact_path }}\` directory not created as expected. Ensure that an artifact \`${{ inputs.artifact_name }}\` exists." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            ls -la ${{ inputs.artifact_path }}
+            echo "✅ Artifact verified, restored in \`${{ inputs.artifact_path }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Deploy to target repository
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+        run: |
+
+          # Create fresh deployment directory
+          mkdir -p deploy-target
+          cd deploy-target
+                    
+          # Initialize fresh git repository
+          git init -b main
+
+          # Configure git
+          git config user.name "${{ inputs.user_name }}"
+          git config user.email "${{ inputs.user_email }}"
+
+
+          # Copy the artifact contents
+          cp -r ../${{ inputs.artifact_path }}/* .
+
+          # Stage and commit
+          git add -A
+          git commit -m "${{ inputs.commit_message }}"
+
+          # Set remote and force push
+          git remote add origin https://x-access-token:${{ secrets.token }}@github.com/${{ inputs.target_repository }}.git
+          
+          set +e
+          git push -f origin HEAD:${{ inputs.target_branch }} > "${{ inputs.context }}.log" 2>&1
+          result=$?
+          set -e
+
+          if [ $result -eq 0 ]; then
+          echo "✅ Successfully deployed to ${{ inputs.target_repository }}" >> $GITHUB_STEP_SUMMARY
+            gh set-status success "Successfully deployed" "${{ inputs.context }}"
+          else
+            gh set-status failure "Deployment failed" "${{ inputs.context }}"
+            echo "❌ Deployment failed. " >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            cat "${{ inputs.context }}.log" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $result
