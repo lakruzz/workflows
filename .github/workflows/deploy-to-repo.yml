@@ -105,7 +105,8 @@ jobs:
 
           #cname
           if [ -n "${{ inputs.cname }}" ]; then
-          echo " ${{ inputs.cname }} " > CNAME
+            echo "${{ inputs.cname }}" > CNAME
+          fi
 
           # Stage and commit
           git add -A
