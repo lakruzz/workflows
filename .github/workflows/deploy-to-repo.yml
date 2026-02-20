@@ -94,6 +94,9 @@ jobs:
 
           # Copy the artifact contents
           cp -r ../${{ inputs.artifact_path }}/* .
+          echo "Build from ${{ github.repository }}" > version.txt
+          echo "Tag: ${{ github.ref_name }}" >> version.txt
+          echo "Commit: ${{ github.sha }}" >> version.txt
 
           # Stage and commit
           git add -A
