@@ -16,6 +16,10 @@ on:
         required: false
         type: string
         default: "./_site"
+      cname:
+        description: "Custom domain name to include in the deployment commit message for traceability"
+        required: false
+        type: string
       user_name:
         description: "Git user name for the commit"
         required: true
@@ -28,7 +32,7 @@ on:
         description: "Commit message for deployment"
         required: false
         type: string
-        default: "Deploy from ${{ github.repository }}@${{ github.ref_name }}"
+        default: "Deploy from ${{ github.repository }}@${{ github.ref_name }} (CNAME: ${{ inputs.cname }})"
       target_branch:
         description: "Target branch in the production repository"
         required: false
@@ -91,12 +95,17 @@ jobs:
           git config user.name "${{ inputs.user_name }}"
           git config user.email "${{ inputs.user_email }}"
 
-
+          #version.txt
           # Copy the artifact contents
           cp -r ../${{ inputs.artifact_path }}/* .
           echo "Build from ${{ github.repository }}" > version.txt
           echo "Tag: ${{ github.ref_name }}" >> version.txt
           echo "Commit: ${{ github.sha }}" >> version.txt
+          echo "CNAME: ${{ inputs.cname }}" >> version.txt
+
+          #cname
+          if [ -n "${{ inputs.cname }}" ]; then
+          echo " ${{ inputs.cname }} " > CNAME
 
           # Stage and commit
           git add -A
