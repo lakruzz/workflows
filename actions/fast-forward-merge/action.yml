@@ -1,0 +1,45 @@
+name: 'Fast Forward Merge'
+description: 'Performs a fast-forward merge to target branch'
+
+inputs:
+  target_branch:
+    description: 'Target branch to fast-forward merge into - default is main'
+    required: false
+    type: string
+    default: 'main'
+  user_name:
+    description: 'Git user name for the merge commit'
+    required: true
+    type: string
+  user_email:
+    description: 'Git user email for the merge commit'
+    required: true
+    type: string
+  token:
+    description: 'GitHub token for CLI operations, needs write permissions for contents'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ inputs.target_branch }}
+        token: ${{ inputs.token }}
+
+    - name: Set up git config
+      shell: bash
+      run: |
+        git config --global user.name "${{ inputs.user_name }}"
+        git config --global user.email "${{ inputs.user_email }}"
+
+    - name: Fast-Forward merge to target branch
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      shell: bash
+      run: |
+        git checkout ${{ inputs.target_branch }}
+        git merge --ff-only ${{ github.sha }}
+        git push origin ${{ inputs.target_branch }}
+        echo "Successfully fast-forward merged '${{ github.sha }}' into ${{ inputs.target_branch }}" >> $GITHUB_STEP_SUMMARY

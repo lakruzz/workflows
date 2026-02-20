@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+summary() {
+  echo "$1" >> "$GITHUB_STEP_SUMMARY"
+}
+
+fail() {
+  summary "❌ $1"
+  echo "$1" >&2
+  exit 1
+}
+
+as_bool() {
+  [[ "${1:-false}" == "true" ]]
+}
+
+TARGET_BRANCH="${INPUT_TARGET_BRANCH:-main}"
+USER_NAME="${INPUT_USER_NAME:-}"
+USER_EMAIL="${INPUT_USER_EMAIL:-}"
+
+DELETE_DEV_BRANCH="${INPUT_DELETE_DEV_BRANCH:-true}"
+DELETE_READY_BRANCH="${INPUT_DELETE_READY_BRANCH:-true}"
+CLOSE_PR="${INPUT_CLOSE_PR:-true}"
+CLOSE_ISSUE="${INPUT_CLOSE_ISSUE:-true}"
+
+READY_BRANCH="${GITHUB_REF_NAME}"
+if [[ "$READY_BRANCH" != ready/* ]]; then
+  fail "Error: expected a ready/* branch, got '$READY_BRANCH'"
+fi
+
+if [[ -z "$USER_NAME" ]]; then
+  fail "missing INPUT_USER_NAME"
+fi
+
+if [[ -z "$USER_EMAIL" ]]; then
+  fail "missing INPUT_USER_EMAIL"
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  summary "This action must run after checkout. Add this step before using the action:"
+  summary '```yaml'
+  summary "      - uses: actions/checkout@v4"
+  summary "        with:"
+  summary "          fetch-depth: 0"
+  summary "          token: \${{ secrets.READY_PUSHER }}"
+  summary '```'
+  summary "Where 'READY_PUSHER' (or what name you choose) is a secret containing a PAT token write access token to the repository."
+  summary "NOTE: \${{ github.token }} will not work! ...as commits done with that token will not trigger other workflows."
+  fail "Not inside a git work tree"
+fi
+
+DEV_BRANCH="${READY_BRANCH#ready/}"
+ISSUE_NUMBER=""
+if [[ "$DEV_BRANCH" =~ ^([0-9]+)- ]]; then
+  ISSUE_NUMBER="${BASH_REMATCH[1]}"
+fi
+
+git config --global user.name "$USER_NAME"
+git config --global user.email "$USER_EMAIL"
+
+git fetch origin "$TARGET_BRANCH"
+git checkout "$TARGET_BRANCH"
+git merge --ff-only "$GITHUB_SHA"
+git push origin "$TARGET_BRANCH"
+summary "Fast-forward merged '$GITHUB_SHA' into '$TARGET_BRANCH'"
+
+PR_NUMBER=""
+if as_bool "$CLOSE_PR" || as_bool "$CLOSE_ISSUE"; then
+  PR_NUMBER=$(gh pr list \
+    --repo "$GITHUB_REPOSITORY" \
+    --state open \
+    --base "$TARGET_BRANCH" \
+    --head "$DEV_BRANCH" \
+    --json number \
+    --jq '.[0].number // empty')
+
+  if [[ -n "$PR_NUMBER" ]]; then
+    summary "👍 Found open PR #$PR_NUMBER for '$DEV_BRANCH' -> '$TARGET_BRANCH'"
+  else
+    summary "👎 No open PR found for '$DEV_BRANCH' -> '$TARGET_BRANCH'"
+  fi
+fi
+
+if as_bool "$CLOSE_PR" && [[ -n "$PR_NUMBER" ]]; then
+  if gh pr close "$PR_NUMBER" \
+    --repo "$GITHUB_REPOSITORY" \
+    --comment "Closed by Ready action after successful fast-forward merge to '$TARGET_BRANCH' via '$READY_BRANCH'."; then
+    summary "✅ Closed PR #$PR_NUMBER with comment"
+  else
+    gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+    summary "✅ Closed PR #$PR_NUMBER without comment (token could not add PR comment)"
+  fi
+fi
+
+if as_bool "$CLOSE_ISSUE"; then
+  if [[ -n "$PR_NUMBER" ]]; then
+    LINKED_ISSUES=$(gh api graphql \
+      -f query='query($owner:String!, $repo:String!, $number:Int!) { repository(owner:$owner, name:$repo) { pullRequest(number:$number) { closingIssuesReferences(first:50) { nodes { number } } } } }' \
+      -F owner="$GITHUB_REPOSITORY_OWNER" \
+      -F repo="${GITHUB_REPOSITORY#*/}" \
+      -F number="$PR_NUMBER" \
+      --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' || true)
+
+    if [[ -z "$LINKED_ISSUES" ]]; then
+      summary "No linked issues found for PR #$PR_NUMBER"
+    else
+      while read -r issue_number; do
+        [[ -z "$issue_number" ]] && continue
+        if gh issue close "$issue_number" \
+          --repo "$GITHUB_REPOSITORY" \
+          --comment "Closed by Ready action after PR #$PR_NUMBER was delivered to '$TARGET_BRANCH'."; then
+          summary "Closed linked issue #$issue_number with comment"
+        else
+          gh issue close "$issue_number" --repo "$GITHUB_REPOSITORY"
+          summary "⚠️ Closed linked issue #$issue_number without comment (token could not add issue comment)"
+        fi
+      done <<< "$LINKED_ISSUES"
+    fi
+  elif [[ -n "$ISSUE_NUMBER" ]]; then
+    if gh issue close "$ISSUE_NUMBER" \
+      --repo "$GITHUB_REPOSITORY" \
+      --comment "Delivered to '$TARGET_BRANCH' as squeezed commit '$GITHUB_SHA'."; then
+      summary "Closed issue #$ISSUE_NUMBER from branch prefix with comment"
+    else
+      gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY"
+      summary "⚠️ Closed issue #$ISSUE_NUMBER from branch prefix without comment (token could not add issue comment)"
+    fi
+  else
+    summary "🤷‍♂️ No PR-linked issue or issue-prefixed branch found; skipping issue closure"
+  fi
+fi
+
+if as_bool "$DELETE_READY_BRANCH"; then
+  git push origin ":$READY_BRANCH"
+  summary "✅ Deleted ready branch '$READY_BRANCH'"
+fi
+
+if as_bool "$DELETE_DEV_BRANCH" && [[ "$DEV_BRANCH" != "$TARGET_BRANCH" ]]; then
+  git push origin ":$DEV_BRANCH"
+  summary "✅ Deleted development branch '$DEV_BRANCH'"
+fi

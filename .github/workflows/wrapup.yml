@@ -32,7 +32,7 @@ jobs:
       contents: read
     uses: lakruzz/workflows/.github/workflows/cspell_check.yml@experimental
     with:
-      config_file: cspell.json
+      config_file: .cspell.jsonc
   
   markdown_linting:
     name: Linting

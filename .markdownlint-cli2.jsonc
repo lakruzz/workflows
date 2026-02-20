@@ -12,6 +12,8 @@
     "MD036": false,
     "MD041": { "allow_preamble": true, "level": 1 },
     "MD042": false,
-    "MD060": { "style": "atx_closed" }
+    "MD060": { "style": "atx_closed" },
+    "MD024": { "siblings_only": true }, // Rule only apply to siblings (same parent)
+
   }
 }

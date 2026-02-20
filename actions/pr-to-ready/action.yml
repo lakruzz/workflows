@@ -1,0 +1,27 @@
+name: "PR to Ready"
+description: "Resolve PR context, create a synthetic ready commit parented on origin/main, and push to ready/<head-branch>"
+
+inputs:
+  token:
+    description: "GitHub token for CLI and git push operations"
+    required: true
+  user_name:
+    description: "Git user name for synthetic commit author"
+    required: false
+    default: "github-actions[bot]"
+  user_email:
+    description: "Git user email for synthetic commit author"
+    required: false
+    default: "github-actions[bot]@users.noreply.github.com"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Deliver PR to ready branch
+      id: pr_to_ready
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        INPUT_USER_NAME: ${{ inputs.user_name }}
+        INPUT_USER_EMAIL: ${{ inputs.user_email }}
+      shell: bash
+      run: ${{ github.action_path }}/pr_to_ready.ah

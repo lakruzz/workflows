@@ -1,0 +1,57 @@
+name: "Ready"
+description: "Fast-forward merge ready commit to target branch and perform context-aware PR/issue closure + branch cleanup"
+
+inputs:
+  target_branch:
+    description: "Target branch to fast-forward merge into - default is main"
+    required: false
+    type: string
+    default: "main"
+  user_name:
+    description: "Git user name for operations"
+    required: true
+    type: string
+  user_email:
+    description: "Git user email for operations"
+    required: true
+    type: string
+  token:
+    description: "GitHub token for CLI operations, needs write permissions for contents/issues/pull-requests"
+    required: true
+  delete_dev_branch:
+    description: "Whether to delete the original development branch after delivery"
+    required: false
+    type: boolean
+    default: true
+  delete_ready_branch:
+    description: "Whether to delete the ready branch after delivery"
+    required: false
+    type: boolean
+    default: true
+  close_pr:
+    description: "Whether to close an open PR for the delivered development branch"
+    required: false
+    type: boolean
+    default: true
+  close_issue:
+    description: "Whether to close linked issue(s) after delivery"
+    required: false
+    type: boolean
+    default: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Ready delivery orchestration
+      id: ready
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
+        INPUT_USER_NAME: ${{ inputs.user_name }}
+        INPUT_USER_EMAIL: ${{ inputs.user_email }}
+        INPUT_DELETE_DEV_BRANCH: ${{ inputs.delete_dev_branch }}
+        INPUT_DELETE_READY_BRANCH: ${{ inputs.delete_ready_branch }}
+        INPUT_CLOSE_PR: ${{ inputs.close_pr }}
+        INPUT_CLOSE_ISSUE: ${{ inputs.close_issue }}
+      shell: bash
+      run: ${{ github.action_path }}/ready.ah

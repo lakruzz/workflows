@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+summary() {
+  echo "$1" >> "$GITHUB_STEP_SUMMARY"
+}
+
+fail() {
+  summary "❌ $1"
+  echo "$1" >&2
+  exit 1
+}
+
+# OVERRIDE variants are prioritized if they exists.
+# This allows tests to override the event name and payload.
+EVENT_NAME="${EVENT_NAME_OVERRIDE:-$GITHUB_EVENT_NAME}"
+EVENT_PATH="${EVENT_PATH_OVERRIDE:-$GITHUB_EVENT_PATH}"
+REPOSITORY="${REPOSITORY_OVERRIDE:-$GITHUB_REPOSITORY}"
+
+# Gate - determine if we should run the delivery logic based on the event context
+if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+  summary "🏃‍♀️ Triggered by workflow_dispatch"
+elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
+  REVIEW_STATE=$(jq -r '.review.state // empty' "$EVENT_PATH")
+  PR_BASE_REF=$(jq -r '.pull_request.base.ref // empty' "$EVENT_PATH")
+  PR_STATE=$(jq -r '.pull_request.state // empty' "$EVENT_PATH")
+  PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$EVENT_PATH")
+
+  if [[ "$REVIEW_STATE" == "approved" &&
+        "$PR_BASE_REF" == "main" &&
+        "$PR_STATE" == "open" &&
+        "$PR_HEAD_REPO" == "$REPOSITORY" ]]; then
+    summary "🏃‍♀️ Triggered by approved same-repo PR review to main"
+  else
+    summary "  review_state='$REVIEW_STATE' (expected 'approved')"
+    summary "  pr_base_ref='$PR_BASE_REF' (expected 'main')"
+    summary "  pr_state='$PR_STATE' (expected 'open')"
+    summary "  pr_head_repo='$PR_HEAD_REPO' (expected '$REPOSITORY')"
+    fail "Skipping delivery for event '$EVENT_NAME' due to guard conditions"
+  fi
+else
+  fail "Event '$EVENT_NAME' is not supported for PR delivery"
+fi
+
+# Resolve PR context as JSON - in dispach mode we will have to query it ourselves
+# In review mode we can get it from the event payload
+if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+  DISPATCH_PR=$(jq -r '.inputs.pr_number // empty' "$EVENT_PATH")
+  if [[ -z "${DISPATCH_PR}" || "${DISPATCH_PR}" == "null" ]]; then
+    fail "pr_number input is required for workflow_dispatch"
+  fi
+  PR_JSON=$(gh pr view "$DISPATCH_PR" --json number,title,headRefName,headRefOid)
+else
+  PR_JSON=$(jq -c '.pull_request' "$EVENT_PATH")
+fi
+
+# Store required PR fields in environment variables for the next step to consume
+PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+PR_TITLE=$(echo "$PR_JSON" | jq -r '.title')
+PR_HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName // .head.ref // empty')
+PR_HEAD_SHA=$(echo "$PR_JSON" | jq -r '.headRefOid // .head.sha // empty')
+
+# Validate that we have all required fields to proceed
+if [[ -z "$PR_NUMBER" || -z "$PR_TITLE" || -z "$PR_HEAD_REF" || -z "$PR_HEAD_SHA" ]]; then
+  summary "Expected to resolve PR_NUMBER, PR_TITLE, PR_HEAD_REF, and PR_HEAD_SHA from event context"
+  summary "  PR_NUMBER='$PR_NUMBER'"
+  summary "  PR_TITLE='$PR_TITLE'"
+  summary "  PR_HEAD_REF='$PR_HEAD_REF'"
+  summary "  PR_HEAD_SHA='$PR_HEAD_SHA'"
+  fail "Could not resolve required PR fields from event payload"
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  summary "This action must run after checkout. Add this step before using the action:"
+  summary '```yaml'
+  summary "      - uses: actions/checkout@v4"
+  summary "        with:"
+  summary "          fetch-depth: 0"
+  summary "          token: \${{ secrets.READY_PUSHER }}"
+  summary '```'
+  summary "Where 'READY_PUSHER' (or what name you choose) is a secret containing a PAT token write access token to the repository."
+  summary "NOTE: \${{ github.token }} will not work! ...as commits done with that token will not trigger other workflows."
+  fail "Not inside a git work tree"
+fi
+
+git config user.name "$INPUT_USER_NAME"
+git config user.email "$INPUT_USER_EMAIL"
+
+git fetch --no-tags origin "$PR_HEAD_SHA"
+
+READY_BRANCH="ready/$PR_HEAD_REF"
+RAW_TITLE="$PR_TITLE"
+CLEAN_TITLE=$(printf '%s' "$RAW_TITLE" | sed -E 's/^\[WIP\][[:space:]]*//') # Remove leading [WIP] from title if present
+COMMIT_SUBJECT="$CLEAN_TITLE - resolves #$PR_NUMBER"
+HISTORY=$(git log --format='%h: %B' origin/main.."$PR_HEAD_SHA")
+MESSAGE_FILE=$(mktemp)
+
+{
+  echo "$COMMIT_SUBJECT"
+  if [[ -n "$HISTORY" ]]; then
+    echo
+    echo "$HISTORY"
+  fi
+} > "$MESSAGE_FILE"
+
+READY_SHA=$(git commit-tree "${PR_HEAD_SHA}^{tree}" -p origin/main -F "$MESSAGE_FILE")
+
+git push origin "$READY_SHA:refs/heads/$READY_BRANCH" --force
+
+summary "✅ Delivered PR #$PR_NUMBER to '$READY_BRANCH' as '$READY_SHA'"

@@ -1,0 +1,32 @@
+name: 'Inherit Statuses'
+description: 'Inherit statuses from a reference commit'
+
+inputs:
+  ref:
+    description: 'Optional commit reference to inherit statuses from (if omitted, ref is derived from the current commit message)'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install gh dependencies
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        gh extension install lakruzz/gh-set-status --pin experimental
+
+    - name: Inherit statuses
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.ref }}" ]; then
+          gh set-status inherit "${{ inputs.ref }}" 2>> $GITHUB_STEP_SUMMARY
+        else
+          gh set-status inherit 2>> $GITHUB_STEP_SUMMARY
+        fi

@@ -1,0 +1,76 @@
+name: 'Close Issue'
+description: 'Closes GitHub issues and cleans up associated branches'
+
+inputs:
+  user_name:
+    description: 'Git user name for operations'
+    required: true
+    type: string
+  user_email:
+    description: 'Git user email for operations'
+    required: true
+    type: string
+  delete_issue_branch:
+    description: 'Whether to delete the issue branch after closing'
+    required: false
+    type: boolean
+    default: true
+  delete_ready_branch:
+    description: 'Whether to delete the ready branch after closing'
+    required: false
+    type: boolean
+    default: true
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up git config
+      shell: bash
+      run: |
+        git config --global user.name "${{ inputs.user_name }}"
+        git config --global user.email "${{ inputs.user_email }}"
+
+    - name: Validate branch format
+      shell: bash
+      run: |
+        if [[ "${{ github.ref_name }}" =~ ^ready/[0-9]+- ]]; then
+          echo "✅ Branch '${{ github.ref_name }}' follows the expected 'ready/123-' format"
+        else
+          echo "❌ Error: Branch '${{ github.ref_name }}' does not follow the expected 'ready/[0-9]+-.*' format" >> $GITHUB_STEP_SUMMARY
+          echo "Expected format: ready/123-issue-name"
+          exit 1
+        fi
+
+    - name: Close the issue
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        # Read the github.ref_name to get the branch name
+        # The branch name is in the format 'ready/123.*'
+        # get the number from the branch name after 'ready/'
+        ISSUE_NUMBER=$(echo "${{ github.ref_name }}" | grep -oP '(?<=ready/)\d+')
+
+        gh issue close "$ISSUE_NUMBER" --repo "${{ github.repository }}" --comment "Delivered to target branch as squeezed commit ${{ github.sha }}"
+        echo "Closed issue #${ISSUE_NUMBER} with delivery comment" >> $GITHUB_STEP_SUMMARY
+
+    - name: Delete ready branch
+      if: ${{ inputs.delete_ready_branch }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        git push origin ":${{ github.ref_name }}"
+        echo "Deleted ready branch '${{ github.ref_name }}' from remote" >> $GITHUB_STEP_SUMMARY
+
+    - name: Delete issue branch
+      if: ${{ inputs.delete_issue_branch }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        ISSUE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/ready\///')
+        git push origin ":${ISSUE_BRANCH}"
+        echo "Deleted issue branch '${ISSUE_BRANCH}' from remote" >> $GITHUB_STEP_SUMMARY

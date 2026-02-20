@@ -11,34 +11,34 @@ on:
 jobs:
 
   inherit-statuses:
-    name: Inherit statuses
+    name: Inherit
     permissions:
       statuses: write
       contents: read
     uses: lakruzz/workflows/.github/workflows/inherit_statuses.yml@experimental
   
-  fast-forward-merge:
-    name: Merge
+  merge-to-trunk:
+    name: Merge to trunk
     needs:
       - inherit-statuses
+    runs-on: ubuntu-latest
     permissions:
-      contents: write
-    secrets:
-      token: ${{ secrets.READY_PUSHER }}
-    uses: lakruzz/workflows/.github/workflows/fast_forward.yml@experimental
-    with:
-      target_branch: main #default is main
-      user_name: "Ready Pusher" #required 
-      user_email: "ready-pusher@lakruzz.com" # required
-
-  close_issue:
-    needs: fast-forward-merge
-    permissions:
+      pull-requests: write
       issues: write
       contents: write
-    uses: lakruzz/workflows/.github/workflows/close_issue.yml@experimental
-    with:
-      user_name: "Ready Pusher"
-      user_email: "ready-pusher@lakruzz.com"
-      delete_issue_branch: true # default is true
-      delete_ready_branch: true # default is true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.READY_PUSHER }}
+
+      - uses: lakruzz/workflows/actions/ready@experimental
+        with:
+          user_name: "Ready Pusher" #required
+          user_email: "ready-pusher@devopsdays.dk" #required
+          token: ${{ secrets.READY_PUSHER }} #required, must have the right permissions
+          # target_branch: main #default is main
+          # delete_dev_branch: true # default is true
+          # delete_ready_branch: true # default is true
+          # close_pr: true # default is true
+          # close_issue: true # default is true
