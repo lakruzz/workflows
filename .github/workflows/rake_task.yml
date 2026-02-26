@@ -113,6 +113,18 @@ jobs:
             fi
           done
 
+      # assume that _some_ rake task has built the site into ./_site
+      #if upload-artifact is true, we will record details in version.txt and upload _site 
+      # it as an artifact for later use in the workflow or for download
+
+      - name: Version.txt
+        id: version
+        if: inputs.upload-artifact && success()
+        run: |
+          echo "Build from ${{ github.repository }}" > _site/version.txt
+          echo "Ref: ${{ github.ref_name }}" >> _site/version.txt
+          echo "Commit: ${{ github.sha }}" >> _site/version.txt
+
       - name: Upload  build artifact
         env:
           GH_TOKEN: ${{ secrets.token }}

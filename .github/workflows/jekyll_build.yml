@@ -144,6 +144,12 @@ jobs:
             echo "Jekyll build failed" >> $GITHUB_STEP_SUMMARY
             gh set-status failure "Jekyll build failed"
           fi
+
+          #version.txt
+          echo "Build from ${{ github.repository }}" > _site/version.txt
+          echo "Ref: ${{ github.ref_name }}" >> _site/version.txt
+          echo "Commit: ${{ github.sha }}" >> _site/version.txt
+
           exit $result
  
       - name: Upload reusable artifact
