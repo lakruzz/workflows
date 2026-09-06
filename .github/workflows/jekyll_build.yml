@@ -108,7 +108,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh extension install thetechcollective/gh-set-status --pin stable          
+          gh extension install lakruzz/gh-set-status --pin stable          
 
       - name: Setup Pages
         id: pages

@@ -30,7 +30,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm install -g markdownlint-cli2
-          gh extension install thetechcollective/gh-set-status --pin stable        
+          gh extension install lakruzz/gh-set-status --pin stable        
 
       - name: Markdown Linting
         id: markdown-linting

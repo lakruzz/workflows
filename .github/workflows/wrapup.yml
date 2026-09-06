@@ -1,6 +1,6 @@
 name: Wrapup
 # This workflow is triggered on push to branches that begins with a number (issue-branches)
-# It's designed to support the wrapup process in thetechcollective/gh-tt GitHub CLI extension
+# It's designed to support the wrapup process in devx-cafe/gh-tt GitHub CLI extension
 on:
   workflow_dispatch:
   push:

@@ -16,8 +16,8 @@ git config --local --get include.path | grep -e ../.gitconfig >/dev/null 2>&1 ||
 if [ -e $(dirname $0)/_temp.token ]; then
     echo "$PREFIX setting up GitHub CLI"
     $(dirname $0)/gh-login.sh postcreate
-    echo "$PREFIX Installing the techcollective/gh-tt gh cli extension"
-    gh extension install thetechcollective/gh-tt --pin experimental
+    echo "$PREFIX Installing the devx-cafe/gh-tt gh cli extension"
+    gh extension install devx-cafe/gh-tt --pin stable
     echo "$PREFIX Installing the gh aliases"    
     gh alias import .devcontainer/.gh_alias.yml --clobber
 fi

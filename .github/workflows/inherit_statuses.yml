@@ -25,7 +25,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh extension install thetechcollective/gh-set-status --pin experimental
+        gh extension install lakruzz/gh-set-status --pin experimental
 
     - name: Inherit statuses
       env:
